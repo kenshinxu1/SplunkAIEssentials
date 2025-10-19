@@ -1,0 +1,4 @@
+﻿time,rule_name,description,src,dest,file_hash,url,domain,email_from,user,severity,cim_model
+2025/7/1 10:15,Suspicious File Detected,Endpoint reported suspicious file,10.1.2.5,,7a9e2f6d2baf36a6e12345b12c7f89dce09b32d1,,,,alice,high,Endpoint
+2025/7/1 10:22,Outbound Connection to Rare IP,Unusual network traffic,10.1.2.8,8.8.4.4,,,,,bob,medium,Network
+2025/7/1 10:31,Phishing Email Clicked,User clicked link in suspicious email,,,,http://secure-login-office365.net,secure-login-office365.net,support@fake365.com,carol,high,Email

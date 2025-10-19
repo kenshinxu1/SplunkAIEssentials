@@ -1,0 +1,118 @@
+{
+    "visualizations": {
+        "test_viz": {
+            "type": "splunk.table",
+            "options": {
+                "columnFormat": {
+                    "number1": {
+                        "data": "> table | seriesByName('number1') | formatByType(numberFormat)"
+                    },
+                    "time": {
+                        "data": "> table | seriesByName('time') | formatByType(timeFormat)"
+                    }
+                }
+            },
+            "dataSources": {
+                "primary": "primary"
+            },
+            "context": {
+                "numberFormat": {
+                    "number": {
+                        "thousandSeparated": true,
+                        "unitPosition": "after",
+                        "output": "byte",
+                        "base": "binary",
+                        "spaceSeparated": true,
+                        "precision": 4
+                    }
+                },
+                "timeFormat": {
+                    "time": {
+                        "format": "MM-DD-YYYY [at] hh:mm A"
+                    }
+                }
+            }
+        }
+    },
+    "dataSources": {
+        "primary": {
+            "type": "ds.test",
+            "options": {
+                "requestParams": {
+                    "offset": 0,
+                    "count": 20
+                },
+                "data": {
+                    "fields": [
+                        {
+                            "name": "number1"
+                        },
+                        {
+                            "name": "time"
+                        }
+                    ],
+                    "columns": [
+                        [
+                            "2000",
+                            "10000000",
+                            "13",
+                            "60",
+                            "43"
+                        ],
+                        [
+                            "2018-05-02T18:10:46.000-07:00",
+                            "2018-05-02T18:11:47.000-07:00",
+                            "2018-05-02T18:12:48.000-07:00",
+                            "2018-05-02T18:13:49.000-07:00",
+                            "2018-05-02T18:15:50.000-07:00"
+                        ]
+                    ]
+                },
+                "meta": {
+                    "totalCount": 100
+                }
+            }
+        }
+    },
+    "defaults": {
+        "dataSources": {
+            "global": {
+                "options": {
+                    "queryParameters": {
+                        "latest": "$global_time.latest$",
+                        "earliest": "$global_time.earliest$"
+                    }
+                }
+            }
+        }
+    },
+    "inputs": {
+        "input_global_trp": {
+            "type": "input.timerange",
+            "options": {
+                "token": "global_time",
+                "defaultValue": "-24h@h,now"
+            },
+            "title": "Global Time Range"
+        }
+    },
+    "layout": {
+        "type": "absolute",
+        "options": {},
+        "structure": [
+            {
+                "item": "test_viz",
+                "type": "block",
+                "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 800,
+                    "h": 500
+                }
+            }
+        ],
+        "globalInputs": [
+            "input_global_trp"
+        ]
+    }
+}

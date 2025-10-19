@@ -1,0 +1,8 @@
+notable_id,rule_name,dest_ip,src_ip,domain,url,file_hash,email,urgency,search_name
+1,Suspicious File Hash Detected,,,,,7a9e2f6d2baf36a6e12345b12c7f89dce09b32d1,,high,Malware File Hash Alert
+2,Suspicious Domain Access,,,login-appleid-secure-verify.net,,,,medium,Phishing Domain Lookup
+3,Phishing URL Detected,,,,hxxp://appleid-verify.com/login,,,high,Web Traffic Inspection
+4,Possible C2 Traffic,185.231.240.12,10.0.2.15,,,,,high,Network Beaconing Detection
+5,Suspicious Email Sender,,,,,,support@micros0ft-login.com,medium,Email Threat Correlation
+6,Suspicious File Hash & Domain,,,suspicious-update.com,,1c9f1b6e26eaf9cd9cc88f441a22c531b7f31eae,,high,Multi-IOC Correlation Rule
+7,Suspicious IP and URL,45.155.205.11,192.168.10.23,,http://45.155.205.11/login.php,,,medium,Network Anomaly Detection

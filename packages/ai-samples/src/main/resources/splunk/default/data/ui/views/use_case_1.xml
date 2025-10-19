@@ -1,0 +1,127 @@
+
+<dashboard version="2" theme="light">
+    <label>Use Case 1</label>
+    <description></description>
+    <definition><![CDATA[
+{
+	"dataSources": {
+		"ds_UWFNDB4W": {
+			"type": "ds.search",
+			"options": {
+				"query": "| inputlookup uc1_es_notables.csv\n| ai prompt=\"From this event record, identify which IOC types are present. Choose from [file_hash, ip, domain, url, email_address]. Output a comma-separated list of detected IOC types. Event details: {rule_name}, {description}, hash={file_hash}, ip={dest}, domain={domain}, url={url}, email={email_from}.\" \n| eval ioc_type=trim(ai_result_1) \n| lookup uc1_ioc_prompt_map.csv ioc_type OUTPUT prompt_template\n| eval prompt=prompt_template\n| foreach file_hash src dest domain url email_from user [ \n    eval prompt=replace(prompt, \"{<<FIELD>>}\", coalesce('<<FIELD>>',\"\")) \n]\n| ai prompt=\"{prompt}\"\n| table rule_name prompt ai_*",
+				"queryParameters": {
+					"earliest": "-24h@h",
+					"latest": "now"
+				}
+			},
+			"name": "Table search 1"
+		},
+		"ds_QVwRdbFL": {
+			"type": "ds.search",
+			"options": {
+				"query": "| inputlookup case1_es_notables.csv \n| table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name\n| eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)\n| where indicator!=\"\"\n| table notable_id rule_name indicator\n| ai prompt=\"你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}\"\n| rename ai_result_1 as ioc_type\n| lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template\n| ai prompt=\"'{prompt_template}'。输入：'{indicator}'\"",
+				"queryParameters": {
+					"earliest": "-24h@h",
+					"latest": "now"
+				}
+			},
+			"name": "Table search"
+		}
+	},
+	"visualizations": {
+		"viz_fqiMkWEG": {
+			"type": "splunk.table",
+			"options": {
+				"count": 20,
+				"dataOverlayMode": "none",
+				"drilldown": "none",
+				"showRowNumbers": false,
+				"showInternalFields": false
+			},
+			"dataSources": {
+				"primary": "ds_UWFNDB4W"
+			}
+		},
+		"viz_VvaORWqN": {
+			"type": "splunk.table",
+			"options": {
+				"count": 20,
+				"dataOverlayMode": "none",
+				"drilldown": "none",
+				"showRowNumbers": false,
+				"showInternalFields": false
+			},
+			"dataSources": {
+				"primary": "ds_QVwRdbFL"
+			}
+		}
+	},
+	"inputs": {},
+	"layout": {
+		"options": {},
+		"globalInputs": [],
+		"tabs": {
+			"items": [
+				{
+					"layoutId": "layout_1",
+					"label": "New tab"
+				}
+			]
+		},
+		"layoutDefinitions": {
+			"layout_1": {
+				"type": "absolute",
+				"structure": [
+					{
+						"item": "viz_VvaORWqN",
+						"type": "block",
+						"position": {
+							"x": 0,
+							"y": 5,
+							"w": 1440,
+							"h": 955
+						}
+					},
+					{
+						"item": "viz_fqiMkWEG",
+						"type": "block",
+						"position": {
+							"x": 0,
+							"y": 960,
+							"w": 1440,
+							"h": 810
+						}
+					}
+				],
+				"options": {
+					"width": 1440,
+					"height": 1270,
+					"display": "auto"
+				}
+			}
+		}
+	},
+	"title": "Use Case 1",
+	"description": "",
+	"defaults": {
+		"dataSources": {
+			"ds.search": {
+				"options": {
+					"queryParameters": {
+						"latest": "$global_time.latest$",
+						"earliest": "$global_time.earliest$"
+					}
+				}
+			}
+		}
+	}
+}
+    ]]></definition>
+    <meta type="hiddenElements"><![CDATA[
+{
+	"hideEdit": false,
+	"hideOpenInSearch": false,
+	"hideExport": false
+}
+    ]]></meta>
+</dashboard>
