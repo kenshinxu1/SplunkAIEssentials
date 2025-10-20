@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<view template="ai-samples:/templates/casedemo4.html" type="html">
+	<label>Casedemo 4</label>
+</view>

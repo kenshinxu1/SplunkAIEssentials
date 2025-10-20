@@ -12,7 +12,6 @@ import CollapsiblePanel from '@splunk/react-ui/CollapsiblePanel';
 import Chip from '@splunk/react-ui/Chip';
 import Layout from '@splunk/react-ui/Layout';
 import styled from 'styled-components';
-import MessageBar from '@splunk/react-ui/MessageBar';
 // @ts-ignore
 import SearchJob from '@splunk/search-job';
 import Code from '@splunk/react-ui/Code';
@@ -23,22 +22,18 @@ import Markdown from '@splunk/react-ui/Markdown';
 // @ts-ignore
 import Table from '@splunk/visualizations/Table';
 // @ts-ignore
-import caseflow from './static/caseflow1.png';
+import caseflow from './static/caseflow3.png';
+import MessageBar from '@splunk/react-ui/MessageBar';
 
-class CaseDemo1 extends Component {
+class CaseDemo3 extends Component {
     constructor(props: {}) {
         super(props);
         this.state = {
-            search: `| inputlookup case1_es_notables.csv
-| table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-| eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-| where indicator!=""
-| table notable_id rule_name indicator
-| ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-| rename ai_result_1 as ioc_type
-| lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-| ai prompt="'{prompt_template}'。输入：'{indicator}'"`,
-            search2: `| inputlookup case1_es_notables.csv`,
+            search: `| inputlookup uc3_notables.csv
+| eval event=rule_name."-".description
+| fields event
+| llmrag prompt="Based on historical response records, identify which department or role is primarily responsible for handling this type of security event {event}. Respond in JSON with fields 'responsible_department' and 'reasoning'." provider=ollama model=llama3:latest`,
+            search2: `| inputlookup uc3_notables.csv`,
             searching: false,
             error: null,
             collaps1: true,
@@ -210,6 +205,7 @@ class CaseDemo1 extends Component {
             this.setState({error: null});
         };
 
+
         const StyledContainer = styled.div`
             display: flex;
             flex-direction: column;
@@ -227,70 +223,59 @@ class CaseDemo1 extends Component {
             padding: 10,
             minHeight: 80,
         };
+        const description = `To address the current complexity of using DSDL with Vector DB and LLM workflows, we provide another option to customer to have a more implementable solution that relies solely on Splunk commands or MLTK native capabilities to achieve vector search + LLM application scenarios.
 
+        Sample Scenarios:
 
-        const description = `   Analysis of common IOCs (Indicators of Compromise, such as domains, IPs, file hashes, URLs, etc.) using large language model-assisted analysis to supplement traditional rule-based matching and threat intelligence citation methods:
+- Automated historical similar event supplementation via Playbook
+- FAQ-based Q&A for security incidents`;
 
-- Categorize scenarios based on the CIM data model (e.g., Endpoint, Network, Email, Web, etc.).
-- Automatically invoke LLM for auxiliary analysis when each IOC is triggered, such as:
-    1. Determine whether a domain appears to have phishing characteristics (based on structure, keywords, historical reputation, etc.).
-    1. Summarize known information about file hashes (e.g., VirusTotal result summaries, MITRE ATT&CK relevance).
-    1. Analyze whether the URL path structure exhibits suspicious patterns.
-- Embed IOCs in context (correlating user behavior, traffic, geolocation) for LLM to assess anomaly severity.`
-
-        const search = `1. | inputlookup case1_es_notables.csv
-2. | table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-3. | eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-4. | where indicator!=""
-5. | table notable_id rule_name indicator
-6. | ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-7. | rename ai_result_1 as ioc_type
-8. | lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-9. | ai prompt="'{prompt_template}'。输入：'{indicator}'"`;
+        const search = `| inputlookup uc3_notables.csv
+| eval event=rule_name."-".description
+| fields event
+| llmrag prompt="Based on historical response records, identify which department or role is primarily responsible for handling this type of security event {event}. Respond in JSON with fields 'responsible_department' and 'reasoning'." provider=ollama model=llama3:latest`;
 
         const comments = `// get Notable details
-// format fields in table
-// defined standard indicator types
-// filter out empty indicator
-// table format
-// use LLM Model to get IOC type base on notable content
-// field format
-// enhance IOC content with  template
-// use LLM Model to get IOC details base on IOC type returned by first LLM call`;
+// combine rule information and notable information in one field
+//
+// Customized command to query vector DB to add internal information
+`;
 
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
 1. Get Security Notable: Retrieve security notable information from Splunk by SPL
-1. Define the list of Indicator of Compromise (IOC) to be analyzed.
-1. Call LLM - Use a Large Language Model (LLM) to determine the IOC category based on the security notable.
-1. IOC Prompt Template lookup: Look up the prompt template corresponding to the IOC category.
-1. Call LLM - Generate IOC Based analysis of security issues: Leverage the LLM and the prompt template to generate an analysis of security issues based on the IOC.
-1. Create Alert OR Add Context to Security Notable
+1. Use Custom search command to enrich the notable event from internal information in Vector DB.
+
+Splunk Implementation:
+- Custom search command (llmrag) to invoke vector database retrieval;
+- Utilize MLTK methods like fit and apply for text preprocessing, automatically feeding results to LLM for summarization/analysis;
+- Establish an "queryable and searchable" knowledge cascade layer, such as analyzing historical cases of similar attack patterns.
 `;
 
-        const Prerequisites =`-  [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- LLM connection is configured Properly and Security model like foundation8b and General model like deepseek are available to use
-- The lookup table for IOC indicator is configured (optional)`;
+        const Prerequisites =`- [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
+- Local Vector DB is deployed
+- Custom command to connect to Vector DB is ready`;
+
         // @ts-ignore
         return (
             <SplunkThemeProvider family="prisma" colorScheme="light" density="comfortable">
                 <StyledContainer style={{ width: '100%' }}>
-                    <Heading level={1}>LLM-enhanced analysis base on IOC</Heading>
+                    <Heading level={1}>Vector search and LLM analysis pipeline design (DSDL-independent)</Heading>
                 </StyledContainer>
                 <ColumnLayout>
                     <ColumnLayout.Row>
                         <ColumnLayout.Column style={colStyle} span={7}>
                             <Heading level={2}>Description</Heading>
                             <br />
-                            <Markdown  style={{"max-width":1000}}  text={description} />
+                            <Markdown style={{"max-width":1000}} text={description} />
                         </ColumnLayout.Column>
                         <ColumnLayout.Column style={colStyle} span={5}>
                             <Heading level={2}>Category</Heading>
                             <br />
                             <Layout>
-                                <Chip appearance="info">LLM</Chip>
-                                <Chip appearance="success">IOC</Chip>
-                                <Chip appearance="warning">Security</Chip>
+                                <Chip appearance="info">RAG</Chip>
+                                <Chip appearance="success">Vector DB</Chip>
+                                <Chip appearance="warning">LLM</Chip>
                             </Layout>
                         </ColumnLayout.Column>
                     </ColumnLayout.Row>
@@ -307,10 +292,10 @@ class CaseDemo1 extends Component {
                         open={this.state.collaps2}
                     >
                         <ColumnLayout.Row>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={5}>
                                 <Markdown text={usecaseflow} />
                             </ColumnLayout.Column>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={7}>
                                 <img
                                     src={caseflow}
                                     alt="Introduction"
@@ -356,24 +341,24 @@ class CaseDemo1 extends Component {
                                     onClick={this.handleAISearch}
                                 />
                                 {'     '}
-                                {this.state.searching ?  <Button disabled label="Loading" appearance="subtle" /> : null}
+                                {this.state.searching ?  <Button label="Loading" appearance="subtle" /> : null}
                                 {this.state.searching ? <WaitSpinner size="medium" screenReaderText="waiting" /> : null}
                             </ColumnLayout.Column>
                             <ColumnLayout.Column span={4}></ColumnLayout.Column>
                         </ColumnLayout.Row>
                         <ColumnLayout.Row>
-                        <section>
-                            <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {this.state.error?
-                                    <MessageBar
-                                        type="error"
-                                        onRequestClose={handleRequestClose}
-                                    >
-                                        {this.state.error}
-                                    </MessageBar>
-                                :null }
-                            </Layout>
-                        </section>
+                            <section>
+                                <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {this.state.error?
+                                        <MessageBar
+                                            type="error"
+                                            onRequestClose={handleRequestClose}
+                                        >
+                                            {this.state.error}
+                                        </MessageBar>
+                                        :null }
+                                </Layout>
+                            </section>
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
@@ -438,8 +423,22 @@ class CaseDemo1 extends Component {
                                             rowColors: '> table | pick(tableRowColor)',
                                         },
                                         columnFormat: {
-                                            ai_result_1: {
-                                                width: 600,
+                                            answer: {
+                                                width: 150,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            department: {
+                                                width: 150,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            contact: {
+                                                width: 150,
                                                 rowBackgroundColors:
                                                     '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
                                                 rowColors:
@@ -457,4 +456,4 @@ class CaseDemo1 extends Component {
     }
 }
 
-export default CaseDemo1;
+export default CaseDemo3;

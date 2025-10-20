@@ -1,10 +1,16 @@
 <nav search_view="search">
   <view name="ShowCases" default="true"/>
+  <collection label="Case Demo">
+    <view name="casedemo1"/>
+    <view name="casedemo2"/>
+    <view name="casedemo3"/>
+    <view name="casedemo4"/>
+  </collection>
   <view name="search"/>
   <view name="analytics_workspace"/>
   <view name="datasets"/>
   <view name="reports"/>
   <view name="alerts"/>
   <view name="dashboards"/>
-  <view name="casedemo1"/>
+
 </nav>

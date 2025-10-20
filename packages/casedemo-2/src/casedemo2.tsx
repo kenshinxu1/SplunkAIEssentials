@@ -12,7 +12,6 @@ import CollapsiblePanel from '@splunk/react-ui/CollapsiblePanel';
 import Chip from '@splunk/react-ui/Chip';
 import Layout from '@splunk/react-ui/Layout';
 import styled from 'styled-components';
-import MessageBar from '@splunk/react-ui/MessageBar';
 // @ts-ignore
 import SearchJob from '@splunk/search-job';
 import Code from '@splunk/react-ui/Code';
@@ -23,28 +22,35 @@ import Markdown from '@splunk/react-ui/Markdown';
 // @ts-ignore
 import Table from '@splunk/visualizations/Table';
 // @ts-ignore
-import caseflow from './static/caseflow1.png';
+import caseflow from './static/caseflow2.png';
+import MessageBar from '@splunk/react-ui/MessageBar';
 
-class CaseDemo1 extends Component {
+class CaseDemo2 extends Component {
     constructor(props: {}) {
         super(props);
         this.state = {
-            search: `| inputlookup case1_es_notables.csv
-| table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-| eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-| where indicator!=""
-| table notable_id rule_name indicator
-| ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-| rename ai_result_1 as ioc_type
-| lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-| ai prompt="'{prompt_template}'。输入：'{indicator}'"`,
-            search2: `| inputlookup case1_es_notables.csv`,
+            search: `| inputlookup uc2_risk_notables.csv
+| stats list(rba_id) as rbas, list(risk_object) as risk_objects, list(threat_objects) as threat_objects, list(rule_name) as rules, list(description) as descs
+| eval rba_data=""
+| foreach rbas risk_objects threat_objects rules descs
+    [ eval rba_data = rba_data . "<<FIELD>>: " . mvindex('<<FIELD>>', 0) . " | " ]
+| eval all_rba_info = mvzip(mvzip(mvzip(mvzip(rbas, risk_objects, "::"), threat_objects, "::"), rules, "::"), descs, "::")
+| eval event_info = mvjoin(all_rba_info, "\\n")
+| eval text="以下安全事件是否可能是同一攻击者发起的攻击链的不同阶段？"
+| eval source_lang="Chinese"
+| eval target_lang="English"
+| ai prompt="Translate from {source_lang} into {target_lang}:{text}" provider=Ollama model=aya:8b-23
+| ai prompt="You are an experienced security analyst. Please analyze the security incidents {event_info} according to the instructions {ai_result_1}. Return structured JSON result with groupings and reasoning." provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
+| ai prompt="Use the following grouped RBA analysis results to generate a concise threat summary report in English, highlighting key attack activities, involved assets, and recommendations. Grouped Data: {ai_result_2}" provider=Ollama model=llama3:latest
+| ai prompt="Translate from {source_lang} into {target_lang}:{ai_result_3}" provider=Ollama model=aya:8b-23
+| table all_rba_info ai_result_*`,
+            search2: `| inputlookup uc2_risk_notables.csv `,
             searching: false,
             error: null,
             collaps1: true,
             collaps2: true,
             collaps3: true,
-            activepanal: "original",
+            activepanal: 'original',
             tabledata: {
                 primary: {
                     requestParams: { offset: 0, count: 20 },
@@ -228,69 +234,84 @@ class CaseDemo1 extends Component {
             minHeight: 80,
         };
 
+        const description =`
 
-        const description = `   Analysis of common IOCs (Indicators of Compromise, such as domains, IPs, file hashes, URLs, etc.) using large language model-assisted analysis to supplement traditional rule-based matching and threat intelligence citation methods:
+Different LLMs have distinct applicable scenarios. By introducing LLMs with varying capabilities and focuses, model collaboration and role specialization can achieve more security-aligned intelligent analysis and interactive experiences.
 
-- Categorize scenarios based on the CIM data model (e.g., Endpoint, Network, Email, Web, etc.).
-- Automatically invoke LLM for auxiliary analysis when each IOC is triggered, such as:
-    1. Determine whether a domain appears to have phishing characteristics (based on structure, keywords, historical reputation, etc.).
-    1. Summarize known information about file hashes (e.g., VirusTotal result summaries, MITRE ATT&CK relevance).
-    1. Analyze whether the URL path structure exhibits suspicious patterns.
-- Embed IOCs in context (correlating user behavior, traffic, geolocation) for LLM to assess anomaly severity.`
+During alert analysis period:
+- Model A translates user requirements → Model B performs security analysis → Model C generates incident summary reports
+- Supports cross-model communication across teams with different input languages and contexts
+- Integrate multiple models into Splunk via streaming commands to enable model routing and task scheduling, then output to ES (Elasticsearch) + SOAR for automated response.`;
 
-        const search = `1. | inputlookup case1_es_notables.csv
-2. | table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-3. | eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-4. | where indicator!=""
-5. | table notable_id rule_name indicator
-6. | ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-7. | rename ai_result_1 as ioc_type
-8. | lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-9. | ai prompt="'{prompt_template}'。输入：'{indicator}'"`;
+        const search = `| inputlookup uc2_risk_notables.csv
+| stats list(rba_id) as rbas, list(risk_object) as risk_objects, list(threat_objects) as threat_objects, list(rule_name) as rules, list(description) as descs
+| eval rba_data=""
+| foreach rbas risk_objects threat_objects rules descs
+    [ eval rba_data = rba_data . "<<FIELD>>: " . mvindex('<<FIELD>>', 0) . " | " ]
+| eval all_rba_info = mvzip(mvzip(mvzip(mvzip(rbas, risk_objects, "::"), threat_objects, "::"), rules, "::"), descs, "::")
+| eval event_info = mvjoin(all_rba_info, "\\n")
+| eval text="以下安全事件是否可能是同一攻击者发起的攻击链的不同阶段？"
+| eval source_lang="Chinese"
+| eval target_lang="English"
+| ai prompt="Translate from {source_lang} into {target_lang}:{text}" provider=Ollama model=aya:8b-23
+| ai prompt="You are an experienced security analyst. Please analyze the security incidents {event_info} according to the instructions {ai_result_1}. Return structured JSON result with groupings and reasoning." provider=Ollama model=foundation8b:latest
+| ai prompt="Use the following grouped RBA analysis results to generate a concise threat summary report in English, highlighting key attack activities, involved assets, and recommendations. Grouped Data: {ai_result_2}" provider=Ollama model=llama3:latest
+| ai prompt="Translate from {source_lang} into {target_lang}:{ai_result_3}" provider=Ollama model=aya:8b-23
+| table all_rba_info ai_result_*`;
 
-        const comments = `// get Notable details
-// format fields in table
-// defined standard indicator types
-// filter out empty indicator
-// table format
-// use LLM Model to get IOC type base on notable content
-// field format
-// enhance IOC content with  template
-// use LLM Model to get IOC details base on IOC type returned by first LLM call`;
+        const comments = `// Load security event data like RBA IDs, risk objects, threat objects, etc.
+// Aggregates data into multivalue fields for cross-referencing and analysis
+//
+// For each field, it appends the field name and its first value (mvindex('<<FIELD>>', 0)) to rba_data
+// Combines all multivalue fields into a single zipped field
+// Joins the zipped data into a single string with newline separators.
+// Defines the prompt for later AI translation/analysis.
+// Sets variables for language translation (Chinese → English).
+// Uses AI (Ollama with aya:8b-23 model) to translate the Chinese prompt to English.
+// Asks an AI (foundation8b) to analyze the events (event_info) and group them into potential attack chains
+// Generates a readable report from the AI analysis (ai_result_2).
+// Translates the final report (ai_result_3) back to Chinese .
+// Displays the final results in a table
+`;
 
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
-1. Get Security Notable: Retrieve security notable information from Splunk by SPL
-1. Define the list of Indicator of Compromise (IOC) to be analyzed.
-1. Call LLM - Use a Large Language Model (LLM) to determine the IOC category based on the security notable.
-1. IOC Prompt Template lookup: Look up the prompt template corresponding to the IOC category.
-1. Call LLM - Generate IOC Based analysis of security issues: Leverage the LLM and the prompt template to generate an analysis of security issues based on the IOC.
-1. Create Alert OR Add Context to Security Notable
-`;
+Data Preparation: Load and structure event data.
+AI Translation: Convert Chinese prompts to English.
+AI Analysis: Group events into attack chains.
+Reporting: Generate actionable insights.
+Final Output: Display raw and analyzed data.
 
-        const Prerequisites =`-  [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- LLM connection is configured Properly and Security model like foundation8b and General model like deepseek are available to use
-- The lookup table for IOC indicator is configured (optional)`;
+model role allocation:
+- Model A (e.g., Tongyi Qianwen or Doubao): Primarily handles Chinese comprehension and interaction, addressing local team requirements or analytical descriptions.
+- Model B (e.g., Security-specialized Foundation 8B): Focuses on security threat deconstruction and attack chain analysis.
+- Model C (e.g., OpenAI GPT series): Provides structured summarization, cross-domain language processing, and scenario integration capabilities.
+`;
+        const Prerequisites =`- [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
+- multi LLM models for different scenarios are available
+- Connections with multi Models are configured properly in AI Toolkit`;
+
         // @ts-ignore
         return (
             <SplunkThemeProvider family="prisma" colorScheme="light" density="comfortable">
                 <StyledContainer style={{ width: '100%' }}>
-                    <Heading level={1}>LLM-enhanced analysis base on IOC</Heading>
+                    <Heading level={1}>Multi-model collaborative composite AI scenarios</Heading>
                 </StyledContainer>
                 <ColumnLayout>
                     <ColumnLayout.Row>
                         <ColumnLayout.Column style={colStyle} span={7}>
                             <Heading level={2}>Description</Heading>
                             <br />
-                            <Markdown  style={{"max-width":1000}}  text={description} />
+                            <Markdown style={{"max-width":1000}}  text={description} />
                         </ColumnLayout.Column>
                         <ColumnLayout.Column style={colStyle} span={5}>
                             <Heading level={2}>Category</Heading>
                             <br />
                             <Layout>
                                 <Chip appearance="info">LLM</Chip>
-                                <Chip appearance="success">IOC</Chip>
+                                <Chip appearance="success">Translation</Chip>
                                 <Chip appearance="warning">Security</Chip>
+                                <Chip appearance="success">Multi Models</Chip>
                             </Layout>
                         </ColumnLayout.Column>
                     </ColumnLayout.Row>
@@ -307,10 +328,10 @@ class CaseDemo1 extends Component {
                         open={this.state.collaps2}
                     >
                         <ColumnLayout.Row>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={4}>
                                 <Markdown text={usecaseflow} />
                             </ColumnLayout.Column>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={8}>
                                 <img
                                     src={caseflow}
                                     alt="Introduction"
@@ -356,24 +377,24 @@ class CaseDemo1 extends Component {
                                     onClick={this.handleAISearch}
                                 />
                                 {'     '}
-                                {this.state.searching ?  <Button disabled label="Loading" appearance="subtle" /> : null}
+                                {this.state.searching ?  <Button label="Loading" appearance="subtle" /> : null}
                                 {this.state.searching ? <WaitSpinner size="medium" screenReaderText="waiting" /> : null}
                             </ColumnLayout.Column>
                             <ColumnLayout.Column span={4}></ColumnLayout.Column>
                         </ColumnLayout.Row>
                         <ColumnLayout.Row>
-                        <section>
-                            <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {this.state.error?
-                                    <MessageBar
-                                        type="error"
-                                        onRequestClose={handleRequestClose}
-                                    >
-                                        {this.state.error}
-                                    </MessageBar>
-                                :null }
-                            </Layout>
-                        </section>
+                            <section>
+                                <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {this.state.error?
+                                        <MessageBar
+                                            type="error"
+                                            onRequestClose={handleRequestClose}
+                                        >
+                                            {this.state.error}
+                                        </MessageBar>
+                                        :null }
+                                </Layout>
+                            </section>
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
@@ -439,7 +460,28 @@ class CaseDemo1 extends Component {
                                         },
                                         columnFormat: {
                                             ai_result_1: {
-                                                width: 600,
+                                                width: 150,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            ai_result_2: {
+                                                width: 200,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            ai_result_3: {
+                                                width: 200,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            ai_result_4: {
+                                                width: 200,
                                                 rowBackgroundColors:
                                                     '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
                                                 rowColors:
@@ -457,4 +499,4 @@ class CaseDemo1 extends Component {
     }
 }
 
-export default CaseDemo1;
+export default CaseDemo2;

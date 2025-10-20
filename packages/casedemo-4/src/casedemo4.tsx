@@ -12,7 +12,6 @@ import CollapsiblePanel from '@splunk/react-ui/CollapsiblePanel';
 import Chip from '@splunk/react-ui/Chip';
 import Layout from '@splunk/react-ui/Layout';
 import styled from 'styled-components';
-import MessageBar from '@splunk/react-ui/MessageBar';
 // @ts-ignore
 import SearchJob from '@splunk/search-job';
 import Code from '@splunk/react-ui/Code';
@@ -23,22 +22,17 @@ import Markdown from '@splunk/react-ui/Markdown';
 // @ts-ignore
 import Table from '@splunk/visualizations/Table';
 // @ts-ignore
-import caseflow from './static/caseflow1.png';
+import caseflow from './static/caseflow4.png';
+import MessageBar from '@splunk/react-ui/MessageBar';
 
-class CaseDemo1 extends Component {
+class CaseDemo4 extends Component {
     constructor(props: {}) {
         super(props);
         this.state = {
-            search: `| inputlookup case1_es_notables.csv
-| table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-| eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-| where indicator!=""
-| table notable_id rule_name indicator
-| ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-| rename ai_result_1 as ioc_type
-| lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-| ai prompt="'{prompt_template}'。输入：'{indicator}'"`,
-            search2: `| inputlookup case1_es_notables.csv`,
+            search: `| llmmcp prompt="统计_internal索引中不同数据类型各自的数量"
+| table *`,
+            search2: `| llmmcp prompt="列出所有索引"
+| table *`,
             searching: false,
             error: null,
             collaps1: true,
@@ -205,7 +199,6 @@ class CaseDemo1 extends Component {
                 collaps3: !prev.collaps3
             }));
         };
-
         const handleRequestClose = () => {
             this.setState({error: null});
         };
@@ -227,70 +220,58 @@ class CaseDemo1 extends Component {
             padding: 10,
             minHeight: 80,
         };
+        const description = `In security and IT operations scenarios, Splunk MCP provides a rich set of tools (such as run_splunk_query, get_indexes, get_metadata, etc.) for efficiently querying logs, indexes, metadata, and knowledge objects.But:
+
+- The cloud or SaaS version of ES AI Assistant may already have the capability to automatically recognize and invoke MCP tool parameters
+- However, in on-prem environments, ES AI Assistant cannot be directly used at this time
+- On-prem LLMs require manual registration of tools and parameters and cannot automatically invoke MCP like their cloud counterparts
+
+This case demonstrates how to achieve higher security and compliance requirements by invoking an on-premises MCP server through a local Splunk deployment.
+`;
 
 
-        const description = `   Analysis of common IOCs (Indicators of Compromise, such as domains, IPs, file hashes, URLs, etc.) using large language model-assisted analysis to supplement traditional rule-based matching and threat intelligence citation methods:
+        const search = `1| llmmcp prompt="统计_internal索引中不同数据类型各自的数量 | table *
+2| llmmcp prompt="列出所有索引" | table *`;
 
-- Categorize scenarios based on the CIM data model (e.g., Endpoint, Network, Email, Web, etc.).
-- Automatically invoke LLM for auxiliary analysis when each IOC is triggered, such as:
-    1. Determine whether a domain appears to have phishing characteristics (based on structure, keywords, historical reputation, etc.).
-    1. Summarize known information about file hashes (e.g., VirusTotal result summaries, MITRE ATT&CK relevance).
-    1. Analyze whether the URL path structure exhibits suspicious patterns.
-- Embed IOCs in context (correlating user behavior, traffic, geolocation) for LLM to assess anomaly severity.`
-
-        const search = `1. | inputlookup case1_es_notables.csv
-2. | table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-3. | eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-4. | where indicator!=""
-5. | table notable_id rule_name indicator
-6. | ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-7. | rename ai_result_1 as ioc_type
-8. | lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-9. | ai prompt="'{prompt_template}'。输入：'{indicator}'"`;
-
-        const comments = `// get Notable details
-// format fields in table
-// defined standard indicator types
-// filter out empty indicator
-// table format
-// use LLM Model to get IOC type base on notable content
-// field format
-// enhance IOC content with  template
-// use LLM Model to get IOC details base on IOC type returned by first LLM call`;
+        const comments = `// get number of event by sourcetype through MCP
+// list all index through MCP`;
 
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
-1. Get Security Notable: Retrieve security notable information from Splunk by SPL
-1. Define the list of Indicator of Compromise (IOC) to be analyzed.
-1. Call LLM - Use a Large Language Model (LLM) to determine the IOC category based on the security notable.
-1. IOC Prompt Template lookup: Look up the prompt template corresponding to the IOC category.
-1. Call LLM - Generate IOC Based analysis of security issues: Leverage the LLM and the prompt template to generate an analysis of security issues based on the IOC.
-1. Create Alert OR Add Context to Security Notable
-`;
+1. Execute multi-round queries to MCP to get information from Splunk
+1. Support Splunk Webhook integration to enable automated alert-triggered investigations
 
-        const Prerequisites =`-  [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- LLM connection is configured Properly and Security model like foundation8b and General model like deepseek are available to use
-- The lookup table for IOC indicator is configured (optional)`;
+- The FastAPI Orchestrator serves as the bridge between local LLMs and MCP
+- TOOL_REGISTRY dynamically stores MCP tool and parameter information
+- Webhook integration enables Splunk alerts to trigger LLM investigations
+`;
+        const Prerequisites =` [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
+custom command to connect to MCP through API is deployed or developed
+
+   Setup Local MCP：
+1. Build a local FastAPI service (Orchestrator) to enable on-premises LLMs to:
+1. Dynamically register MCP tools and parameters
+`;
         // @ts-ignore
         return (
             <SplunkThemeProvider family="prisma" colorScheme="light" density="comfortable">
                 <StyledContainer style={{ width: '100%' }}>
-                    <Heading level={1}>LLM-enhanced analysis base on IOC</Heading>
+                    <Heading level={1}>Splunk MCP-mediated LLM execution in local environment</Heading>
                 </StyledContainer>
                 <ColumnLayout>
                     <ColumnLayout.Row>
                         <ColumnLayout.Column style={colStyle} span={7}>
                             <Heading level={2}>Description</Heading>
                             <br />
-                            <Markdown  style={{"max-width":1000}}  text={description} />
+                                <Markdown style={{"max-width":1000}} text={description} />
                         </ColumnLayout.Column>
                         <ColumnLayout.Column style={colStyle} span={5}>
                             <Heading level={2}>Category</Heading>
                             <br />
                             <Layout>
-                                <Chip appearance="info">LLM</Chip>
-                                <Chip appearance="success">IOC</Chip>
-                                <Chip appearance="warning">Security</Chip>
+                                <Chip appearance="info">MCP</Chip>
+                                <Chip appearance="success">Splunk</Chip>
+                                <Chip appearance="warning">LLM</Chip>
                             </Layout>
                         </ColumnLayout.Column>
                     </ColumnLayout.Row>
@@ -307,10 +288,10 @@ class CaseDemo1 extends Component {
                         open={this.state.collaps2}
                     >
                         <ColumnLayout.Row>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={7}>
                                 <Markdown text={usecaseflow} />
                             </ColumnLayout.Column>
-                            <ColumnLayout.Column span={6}>
+                            <ColumnLayout.Column span={5}>
                                 <img
                                     src={caseflow}
                                     alt="Introduction"
@@ -356,29 +337,29 @@ class CaseDemo1 extends Component {
                                     onClick={this.handleAISearch}
                                 />
                                 {'     '}
-                                {this.state.searching ?  <Button disabled label="Loading" appearance="subtle" /> : null}
+                                {this.state.searching ?  <Button label="Loading" appearance="subtle" /> : null}
                                 {this.state.searching ? <WaitSpinner size="medium" screenReaderText="waiting" /> : null}
                             </ColumnLayout.Column>
                             <ColumnLayout.Column span={4}></ColumnLayout.Column>
                         </ColumnLayout.Row>
                         <ColumnLayout.Row>
-                        <section>
-                            <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {this.state.error?
-                                    <MessageBar
-                                        type="error"
-                                        onRequestClose={handleRequestClose}
-                                    >
-                                        {this.state.error}
-                                    </MessageBar>
-                                :null }
-                            </Layout>
-                        </section>
+                            <section>
+                                <Layout style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {this.state.error?
+                                        <MessageBar
+                                            type="error"
+                                            onRequestClose={handleRequestClose}
+                                        >
+                                            {this.state.error}
+                                        </MessageBar>
+                                        :null }
+                                </Layout>
+                            </section>
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
                 <TabLayout activePanelId={this.state.activepanal} >
-                    <TabLayout.Panel label="Original Data" panelId="original">
+                    <TabLayout.Panel label="Sample 1 Results" panelId="original">
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>
                                 <Table
@@ -414,7 +395,7 @@ class CaseDemo1 extends Component {
                             </ColumnLayout.Column>
                         </ColumnLayout.Row>
                     </TabLayout.Panel>
-                    <TabLayout.Panel label="AI Results" panelId="aidata">
+                    <TabLayout.Panel label="Sample 2 Results" panelId="aidata">
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>
                                 <Table
@@ -457,4 +438,4 @@ class CaseDemo1 extends Component {
     }
 }
 
-export default CaseDemo1;
+export default CaseDemo4;
