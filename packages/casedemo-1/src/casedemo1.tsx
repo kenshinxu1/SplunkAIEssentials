@@ -29,16 +29,17 @@ class CaseDemo1 extends Component {
     constructor(props: {}) {
         super(props);
         this.state = {
-            search: `| inputlookup case1_es_notables.csv
-| table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-| eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-| where indicator!=""
-| table notable_id rule_name indicator
-| ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-| rename ai_result_1 as ioc_type
-| lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-| ai prompt="'{prompt_template}'。输入：'{indicator}'"`,
-            search2: `| inputlookup case1_es_notables.csv`,
+            search: `| inputlookup uc1_es_notables.csv
+| ai prompt="From this event record, identify which IOC types are present. Choose from [file_hash, ip, domain, url, email_address]. Output a comma-separated list of detected IOC types. Event details: {rule_name}, {description}, hash={file_hash}, ip={dest}, domain={domain}, url={url}, email={email_from}." provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
+| eval ioc_type=trim(ai_result_1)
+| lookup uc1_ioc_prompt_map.csv ioc_type OUTPUT prompt_template
+| eval prompt=prompt_template
+| foreach file_hash src dest domain url email_from user [
+    eval prompt=replace(prompt, "{<<FIELD>>}", coalesce('<<FIELD>>',""))
+]
+| ai prompt="{prompt}" provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
+| table rule_name prompt ai_*`,
+            search2: `| inputlookup uc1_es_notables.csv`,
             searching: false,
             error: null,
             collaps1: true,
@@ -210,6 +211,11 @@ class CaseDemo1 extends Component {
             this.setState({error: null});
         };
 
+        const tabChange = (e,value:any) => {
+            console.log(value);
+            this.setState({activepanal: value.activePanelId });
+        };
+
         const StyledContainer = styled.div`
             display: flex;
             flex-direction: column;
@@ -229,24 +235,25 @@ class CaseDemo1 extends Component {
         };
 
 
-        const description = `   Analysis of common IOCs (Indicators of Compromise, such as domains, IPs, file hashes, URLs, etc.) using large language model-assisted analysis to supplement traditional rule-based matching and threat intelligence citation methods:
+        const description = `   Analysis of common IOCs (Indicators of Compromise, such as domains, IPs, file hashes, URLs, etc.) using large language model-assisted analysis to enhance traditional rule-based matching and threat intelligence citation methods:
 
 - Categorize scenarios based on the CIM data model (e.g., Endpoint, Network, Email, Web, etc.).
-- Automatically invoke LLM for auxiliary analysis when each IOC is triggered, such as:
+- Automatically invoke LLM for auxiliary analysis when each IOC is detected, such as:
     1. Determine whether a domain appears to have phishing characteristics (based on structure, keywords, historical reputation, etc.).
-    1. Summarize known information about file hashes (e.g., VirusTotal result summaries, MITRE ATT&CK relevance).
+    1. Summarizing known threat intelligence about file hashes (e.g., VirusTotal result summaries, MITRE ATT&CK relevance).
     1. Analyze whether the URL path structure exhibits suspicious patterns.
 - Embed IOCs in context (correlating user behavior, traffic, geolocation) for LLM to assess anomaly severity.`
 
-        const search = `1. | inputlookup case1_es_notables.csv
-2. | table notable_id rule_name dest_ip src_ip domain url file_hash email urgency search_name
-3. | eval indicator=coalesce(file_hash, url, domain, dest_ip, src_ip, email)
-4. | where indicator!=""
-5. | table notable_id rule_name indicator
-6. | ai provider=Ollama model=foundation8b:latest prompt="你是安全分析助手，请判断以下字符串的IOC类型（仅从domain, url, ip, hash, email中选择），只返回IOC类型（仅从domain, url, ip, hash, email中选择）。输入：{indicator}"
-7. | rename ai_result_1 as ioc_type
-8. | lookup case1_ioc_prompt_lookup.csv ioc_type OUTPUT prompt_template
-9. | ai prompt="'{prompt_template}'。输入：'{indicator}'"`;
+        const search = `| inputlookup uc1_es_notables.csv
+| ai prompt="From this event record, identify which IOC types are present. Choose from [file_hash, ip, domain, url, email_address]. Output a comma-separated list of detected IOC types. Event details: {rule_name}, {description}, hash={file_hash}, ip={dest}, domain={domain}, url={url}, email={email_from}." provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
+| eval ioc_type=trim(ai_result_1)
+| lookup uc1_ioc_prompt_map.csv ioc_type OUTPUT prompt_template
+| eval prompt=prompt_template
+| foreach file_hash src dest domain url email_from user [
+    eval prompt=replace(prompt, "{<<FIELD>>}", coalesce('<<FIELD>>',""))
+]
+| ai prompt="{prompt}" provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
+| table rule_name prompt ai_*`;
 
         const comments = `// get Notable details
 // format fields in table
@@ -268,8 +275,9 @@ class CaseDemo1 extends Component {
 1. Create Alert OR Add Context to Security Notable
 `;
 
-        const Prerequisites =`-  [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- LLM connection is configured Properly and Security model like foundation8b and General model like deepseek are available to use
+        const Prerequisites =`-  Must have [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) installed
+- Must have LLM connection  configured Properly in AI Toolkit
+- Must have Security model hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M is installed (or you need to adjust the prompt base on your own model)
 - The lookup table for IOC indicator is configured (optional)`;
         // @ts-ignore
         return (
@@ -377,8 +385,8 @@ class CaseDemo1 extends Component {
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
-                <TabLayout activePanelId={this.state.activepanal} >
-                    <TabLayout.Panel label="Original Data" panelId="original">
+                <TabLayout activePanelId={this.state.activepanal} onChange={tabChange}>
+                    <TabLayout.Panel label="Original Data" panelId="original"  >
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>
                                 <Table
@@ -439,11 +447,18 @@ class CaseDemo1 extends Component {
                                         },
                                         columnFormat: {
                                             ai_result_1: {
-                                                width: 600,
+                                                width: 100,
                                                 rowBackgroundColors:
                                                     '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
                                                 rowColors:
                                                     '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                            },
+                                            ai_result_2: {
+                                                width: 500,
+                                                rowBackgroundColors:
+                                                    '> table | seriesByName("ai_result_2") | pick(columnBackgroundColor)',
+                                                rowColors:
+                                                    '> table | seriesByName("ai_result_2") | pick(columnColor)',
                                             },
                                         },
                                     }}

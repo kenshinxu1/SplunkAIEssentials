@@ -29,16 +29,27 @@ class CaseDemo4 extends Component {
     constructor(props: {}) {
         super(props);
         this.state = {
-            search: `| llmmcp prompt="统计_internal索引中不同数据类型各自的数量"
-| table *`,
-            search2: `| llmmcp prompt="列出所有索引"
-| table *`,
+            search: `| llmmcp prompt="列出所有索引"
+| table structuredContent
+| append
+    [| llmmcp prompt="统计_internal索引中不同数据类型各自的数量"
+    | table structuredContent]
+| spath input=structuredContent path=results{} output=items
+| mvexpand items
+| spath input=items
+| eval entity=coalesce(title, sourcetype)
+| eval metricType=if(isnotnull(title), "index", "sourcetype")
+| eval eventCount=coalesce(totalEventCount, count)
+| eval sizeMB=if(isnotnull(currentDBSizeMB), currentDBSizeMB, null())
+| fields metricType entity sizeMB eventCount disabled
+| table metricType entity sizeMB eventCount disabled`,
+            search2: `index=_internal | head 1000`,
             searching: false,
             error: null,
             collaps1: true,
             collaps2: true,
             collaps3: true,
-            activepanal: "original",
+            activepanal: "aidata",
             tabledata: {
                 primary: {
                     requestParams: { offset: 0, count: 20 },
@@ -60,7 +71,7 @@ class CaseDemo4 extends Component {
                 },
             },
         };
-        this.handleOriginSearch();
+        // this.handleOriginSearch();
     }
 
     fromJSONArray = (results: any[]) => {
@@ -203,6 +214,11 @@ class CaseDemo4 extends Component {
             this.setState({error: null});
         };
 
+        const tabChange = (e,value:any) => {
+            console.log(value);
+            this.setState({activepanal: value.activePanelId });
+        };
+
         const StyledContainer = styled.div`
             display: flex;
             flex-direction: column;
@@ -230,11 +246,26 @@ This case demonstrates how to achieve higher security and compliance requirement
 `;
 
 
-        const search = `1| llmmcp prompt="统计_internal索引中不同数据类型各自的数量 | table *
-2| llmmcp prompt="列出所有索引" | table *`;
+        const search = `| llmmcp prompt="列出所有索引"
+| table structuredContent
+| append
+    [| llmmcp prompt="统计_internal索引中不同数据类型各自的数量"
+    | table structuredContent]
+| spath input=structuredContent path=results{} output=items
+| mvexpand items
+| spath input=items
+| eval entity=coalesce(title, sourcetype)
+| eval metricType=if(isnotnull(title), "index", "sourcetype")
+| eval eventCount=coalesce(totalEventCount, count)
+| eval sizeMB=if(isnotnull(currentDBSizeMB), currentDBSizeMB, null())
+| fields metricType entity sizeMB eventCount disabled
+| table metricType entity sizeMB eventCount disabled`;
 
-        const comments = `// get number of event by sourcetype through MCP
-// list all index through MCP`;
+        const comments = `// list all index through MCP
+//
+//
+// get number of event by sourcetype through MCP
+`;
 
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
@@ -245,12 +276,46 @@ This case demonstrates how to achieve higher security and compliance requirement
 - TOOL_REGISTRY dynamically stores MCP tool and parameter information
 - Webhook integration enables Splunk alerts to trigger LLM investigations
 `;
-        const Prerequisites =` [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-custom command to connect to MCP through API is deployed or developed
+        const Prerequisites = `- Must have [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK)  installed
+- Must have custom command defined to connect to MCP through API (there is an example in current app)
 
    Setup Local MCP：
-1. Build a local FastAPI service (Orchestrator) to enable on-premises LLMs to:
+1. Setup MCP with [Splunk MCP Server](https://splunkbase.splunk.com/app/7931)
+1. Build a local FastAPI service (Orchestrator) to enable on-premises LLMs to connect to MCP
 1. Dynamically register MCP tools and parameters
+
+   Sample  Configuration:
+- Enable local MCP server in splunk, and setup a user token for mcp
+- Install mcp-proxy:  uv tool install mcp-proxy
+- Launch mcp-proxy
+Create mcp_servers.json with below content
+
+{
+    "mcpServers": {
+        "splunk-remote-server": {
+            "command": "npx",
+            "transportType": "streamablehttp",
+            "env": {
+                "AUTH_HEADER": "Bearer user_token",
+                "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+            },
+            "args": [
+                "-y",
+                "mcp-remote",
+                "https://localhost:8089/services/mcp/v1/",
+                "--header",
+                "Content-Type:application/json",
+                "--header",
+                "Authorization:$\{AUTH_HEADER\}",
+                "--debug"
+            ]
+        }
+    }
+}
+
+
+- run mcp-proxy with: nohup mcp-proxy --port=8081 --named-server-config ./mcp_server.json > mcp.log 2>&1 &
+- Need qwen3: ollama run qwen3
 `;
         // @ts-ignore
         return (
@@ -358,44 +423,44 @@ custom command to connect to MCP through API is deployed or developed
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
-                <TabLayout activePanelId={this.state.activepanal} >
-                    <TabLayout.Panel label="Sample 1 Results" panelId="original">
-                        <ColumnLayout.Row style={{ height: 800 }}>
-                            <ColumnLayout.Column span={8} style={{ height: 800 }}>
-                                <Table
-                                    height={800}
-                                    dataSources={this.state.oridata}
-                                    context={{
-                                        tableRowBackgroundColor: ['#dddddd', 'white'],
-                                        tableRowColor: ['#2c2c2c'],
-                                        columnBackgroundColor: ['#74deee'],
-                                        columnColor: ['#333333'],
-                                    }}
-                                    options={{
-                                        backgroundColor: 'white',
-                                        showInternalFields: false,
-                                        tableFormat: {
-                                            headerBackgroundColor: '#6b6b6b',
-                                            headerColor: 'white',
-                                            rowBackgroundColors:
-                                                '> table | pick(tableRowBackgroundColor)',
-                                            rowColors: '> table | pick(tableRowColor)',
-                                        },
-                                        columnFormat: {
-                                            ai_result_1: {
-                                                width: 600,
-                                                rowBackgroundColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
-                                                rowColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
-                                            },
-                                        },
-                                    }}
-                                />
-                            </ColumnLayout.Column>
-                        </ColumnLayout.Row>
-                    </TabLayout.Panel>
-                    <TabLayout.Panel label="Sample 2 Results" panelId="aidata">
+                <TabLayout activePanelId={this.state.activepanal}  onChange={tabChange}>
+                    {/*<TabLayout.Panel label="Sample 1 Results" panelId="original">*/}
+                    {/*    <ColumnLayout.Row style={{ height: 800 }}>*/}
+                    {/*        <ColumnLayout.Column span={8} style={{ height: 800 }}>*/}
+                    {/*            <Table*/}
+                    {/*                height={800}*/}
+                    {/*                dataSources={this.state.oridata}*/}
+                    {/*                context={{*/}
+                    {/*                    tableRowBackgroundColor: ['#dddddd', 'white'],*/}
+                    {/*                    tableRowColor: ['#2c2c2c'],*/}
+                    {/*                    columnBackgroundColor: ['#74deee'],*/}
+                    {/*                    columnColor: ['#333333'],*/}
+                    {/*                }}*/}
+                    {/*                options={{*/}
+                    {/*                    backgroundColor: 'white',*/}
+                    {/*                    showInternalFields: false,*/}
+                    {/*                    tableFormat: {*/}
+                    {/*                        headerBackgroundColor: '#6b6b6b',*/}
+                    {/*                        headerColor: 'white',*/}
+                    {/*                        rowBackgroundColors:*/}
+                    {/*                            '> table | pick(tableRowBackgroundColor)',*/}
+                    {/*                        rowColors: '> table | pick(tableRowColor)',*/}
+                    {/*                    },*/}
+                    {/*                    columnFormat: {*/}
+                    {/*                        ai_result_1: {*/}
+                    {/*                            width: 600,*/}
+                    {/*                            rowBackgroundColors:*/}
+                    {/*                                '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',*/}
+                    {/*                            rowColors:*/}
+                    {/*                                '> table | seriesByName("ai_result_1") | pick(columnColor)',*/}
+                    {/*                        },*/}
+                    {/*                    },*/}
+                    {/*                }}*/}
+                    {/*            />*/}
+                    {/*        </ColumnLayout.Column>*/}
+                    {/*    </ColumnLayout.Row>*/}
+                    {/*</TabLayout.Panel>*/}
+                    <TabLayout.Panel label="MCP Results" panelId="aidata">
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>
                                 <Table

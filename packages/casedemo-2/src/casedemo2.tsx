@@ -42,7 +42,7 @@ class CaseDemo2 extends Component {
 | ai prompt="Translate from {source_lang} into {target_lang}:{text}" provider=Ollama model=aya:8b-23
 | ai prompt="You are an experienced security analyst. Please analyze the security incidents {event_info} according to the instructions {ai_result_1}. Return structured JSON result with groupings and reasoning." provider=Ollama model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
 | ai prompt="Use the following grouped RBA analysis results to generate a concise threat summary report in English, highlighting key attack activities, involved assets, and recommendations. Grouped Data: {ai_result_2}" provider=Ollama model=llama3:latest
-| ai prompt="Translate from {source_lang} into {target_lang}:{ai_result_3}" provider=Ollama model=aya:8b-23
+| ai prompt="Translate from {target_lang} into {source_lang}:{ai_result_3}" provider=Ollama model=aya:8b-23
 | table all_rba_info ai_result_*`,
             search2: `| inputlookup uc2_risk_notables.csv `,
             searching: false,
@@ -216,6 +216,10 @@ class CaseDemo2 extends Component {
             this.setState({error: null});
         };
 
+        const tabChange = (e,value:any) => {
+            console.log(value);
+            this.setState({activepanal: value.activePanelId });
+        };
         const StyledContainer = styled.div`
             display: flex;
             flex-direction: column;
@@ -254,7 +258,7 @@ During alert analysis period:
 | eval source_lang="Chinese"
 | eval target_lang="English"
 | ai prompt="Translate from {source_lang} into {target_lang}:{text}" provider=Ollama model=aya:8b-23
-| ai prompt="You are an experienced security analyst. Please analyze the security incidents {event_info} according to the instructions {ai_result_1}. Return structured JSON result with groupings and reasoning." provider=Ollama model=foundation8b:latest
+| ai prompt="You are an experienced security analyst. Please analyze the security incidents {event_info} according to the instructions {ai_result_1}. Return structured JSON result with groupings and reasoning." provider=Ollama model=model=hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M
 | ai prompt="Use the following grouped RBA analysis results to generate a concise threat summary report in English, highlighting key attack activities, involved assets, and recommendations. Grouped Data: {ai_result_2}" provider=Ollama model=llama3:latest
 | ai prompt="Translate from {source_lang} into {target_lang}:{ai_result_3}" provider=Ollama model=aya:8b-23
 | table all_rba_info ai_result_*`;
@@ -276,20 +280,20 @@ During alert analysis period:
 
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
-Data Preparation: Load and structure event data.
-AI Translation: Convert Chinese prompts to English.
-AI Analysis: Group events into attack chains.
-Reporting: Generate actionable insights.
-Final Output: Display raw and analyzed data.
+1. Data Preparation: Load and structure event data
+1. AI Translation: Convert Chinese prompts to English.
+1. AI Analysis: Analyze the security events with attack chain information.
+1. AI Summary: Generate summary report and actionable insights.
+1. Final Output: AI Translate report back to Chinese and display.
 
-model role allocation:
-- Model A (e.g., Tongyi Qianwen or Doubao): Primarily handles Chinese comprehension and interaction, addressing local team requirements or analytical descriptions.
-- Model B (e.g., Security-specialized Foundation 8B): Focuses on security threat deconstruction and attack chain analysis.
-- Model C (e.g., OpenAI GPT series): Provides structured summarization, cross-domain language processing, and scenario integration capabilities.
+Model role:
+- Model A (aya): Primarily handles Chinese comprehension and interaction, addressing local team requirements or analytical descriptions.
+- Model B (hf.co/DevQuasar/fdtn-ai.Foundation-Sec-8B-Instruct-GGUF:Q4_K_M in this case): Focuses on security threat deconstruction and attack chain analysis.
+- Model C (llama3 in the case): Provides structured summarization, cross-domain language processing, and scenario integration capabilities.
 `;
-        const Prerequisites =`- [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- multi LLM models for different scenarios are available
-- Connections with multi Models are configured properly in AI Toolkit`;
+        const Prerequisites =`- Must have [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
+- Must have multi LLM models available for different scenarios
+- Must have LLM connection with multi Models configured Properly in AI Toolkit`;
 
         // @ts-ignore
         return (
@@ -398,7 +402,7 @@ model role allocation:
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
-                <TabLayout activePanelId={this.state.activepanal} >
+                <TabLayout activePanelId={this.state.activepanal}  onChange={tabChange}>
                     <TabLayout.Panel label="Original Data" panelId="original">
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>

@@ -205,6 +205,10 @@ class CaseDemo3 extends Component {
             this.setState({error: null});
         };
 
+        const tabChange = (e,value:any) => {
+            console.log(value);
+            this.setState({activepanal: value.activePanelId });
+        };
 
         const StyledContainer = styled.div`
             display: flex;
@@ -244,7 +248,7 @@ class CaseDemo3 extends Component {
         const usecaseflow = `
 ## The specific steps of this use case are as follows:
 1. Get Security Notable: Retrieve security notable information from Splunk by SPL
-1. Use Custom search command to enrich the notable event from internal information in Vector DB.
+1. Use Custom search command to enrich the notable event from internal & private information in Vector DB.
 
 Splunk Implementation:
 - Custom search command (llmrag) to invoke vector database retrieval;
@@ -252,9 +256,27 @@ Splunk Implementation:
 - Establish an "queryable and searchable" knowledge cascade layer, such as analyzing historical cases of similar attack patterns.
 `;
 
-        const Prerequisites =`- [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) is installed
-- Local Vector DB is deployed
-- Custom command to connect to Vector DB is ready`;
+        const Prerequisites = `- Must have [AI Toolkit](https://docs.splunk.com/Documentation/MLApp/5.6.3/User/AboutMLTK) installed
+- Must have local Vector DB deployed
+- Must have custom command to connect to local Vector DB (varies according to your Vector DB, there is an example in current app)
+- Must have Python env  properly configured for custom command (configured in $SPLUNK_HOME/etc/apps/ai-samples/bin/system_python.path) Please replace with your own python with lib
+
+Sample Env setup for this case
+* Install milvus
+    * Standalone or docker unless the service port is 19530
+* Create python env
+    * cd $SPLUNK_HOME/etc/apps/AI_Essentials
+    * python3.11 -m venv milvus_venv
+    * source milvus_venv/bin/activate
+* Import required package
+    * pip install --upgrade pip
+    * pip install pymilvus sentence-transformers requests splunk-sdk ollama
+* embedding doc
+    * cd $SPLUNK_HOME/etc/apps/AI_Essentials/bin
+    * python milvus_embed.py
+    * python milvus_test.py
+`;
+
 
         // @ts-ignore
         return (
@@ -362,7 +384,7 @@ Splunk Implementation:
                         </ColumnLayout.Row>
                     </CollapsiblePanel>
                 </ColumnLayout>
-                <TabLayout activePanelId={this.state.activepanal} >
+                <TabLayout activePanelId={this.state.activepanal}  onChange={tabChange}>
                     <TabLayout.Panel label="Original Data" panelId="original">
                         <ColumnLayout.Row style={{ height: 800 }}>
                             <ColumnLayout.Column span={8} style={{ height: 800 }}>
@@ -426,23 +448,23 @@ Splunk Implementation:
                                             answer: {
                                                 width: 150,
                                                 rowBackgroundColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                    '> table | seriesByName("answer") | pick(columnBackgroundColor)',
                                                 rowColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                                    '> table | seriesByName("answer") | pick(columnColor)',
                                             },
                                             department: {
                                                 width: 150,
                                                 rowBackgroundColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                    '> table | seriesByName("department") | pick(columnBackgroundColor)',
                                                 rowColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                                    '> table | seriesByName("department") | pick(columnColor)',
                                             },
                                             contact: {
                                                 width: 150,
                                                 rowBackgroundColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnBackgroundColor)',
+                                                    '> table | seriesByName("contact") | pick(columnBackgroundColor)',
                                                 rowColors:
-                                                    '> table | seriesByName("ai_result_1") | pick(columnColor)',
+                                                    '> table | seriesByName("contact") | pick(columnColor)',
                                             },
                                         },
                                     }}

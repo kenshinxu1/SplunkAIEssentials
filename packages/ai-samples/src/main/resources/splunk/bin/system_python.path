@@ -1,1 +1,1 @@
-$SPLUNK_HOME/etc/apps/AI_Essentials/milvus_venv/bin/python
+$SPLUNK_HOME/etc/apps/ai-samples/milvus_venv/bin/python
