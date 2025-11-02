@@ -245,7 +245,7 @@ Different LLMs have distinct applicable scenarios. By introducing LLMs with vary
 During alert analysis period:
 - Model A translates user requirements → Model B performs security analysis → Model C generates incident summary reports
 - Supports cross-model communication across teams with different input languages and contexts
-- Integrate multiple models into Splunk via streaming commands to enable model routing and task scheduling, then output to ES (Elasticsearch) + SOAR for automated response.`;
+- Integrate multiple models into Splunk via streaming commands to enable model routing and task scheduling, then output to ES + SOAR for automated response.`;
 
         const search = `| inputlookup uc2_risk_notables.csv
 | stats list(rba_id) as rbas, list(risk_object) as risk_objects, list(threat_objects) as threat_objects, list(rule_name) as rules, list(description) as descs

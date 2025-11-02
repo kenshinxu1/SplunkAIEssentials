@@ -282,7 +282,7 @@ Sample Env setup for this case
         return (
             <SplunkThemeProvider family="prisma" colorScheme="light" density="comfortable">
                 <StyledContainer style={{ width: '100%' }}>
-                    <Heading level={1}>Vector search and LLM analysis pipeline design (DSDL-independent)</Heading>
+                    <Heading level={1}>Vector search and LLM analysis pipeline design</Heading>
                 </StyledContainer>
                 <ColumnLayout>
                     <ColumnLayout.Row>
